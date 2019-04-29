@@ -755,6 +755,8 @@ SVGGraphics = class SVGGraphics {
     const textHScale = current.textHScale * fontDirection;
     const vertical = font.vertical;
     const widthAdvanceScale = fontSize * current.fontMatrix[0];
+    let doubleSpace = false;
+    let lastWasSpace = false;
 
     let x = 0;
     for (const glyph of glyphs) {
@@ -770,6 +772,14 @@ SVGGraphics = class SVGGraphics {
       const width = glyph.width;
       const character = glyph.fontChar;
       const spacing = (glyph.isSpace ? wordSpacing : 0) + charSpacing;
+      if (glyph.isSpace || glyph.fontChar === ' ') {
+        if (lastWasSpace || i === 0 || (i === glyphsLength - 1)) {
+          doubleSpace = true;
+        }
+        lastWasSpace = true;
+      } else {
+        lastWasSpace = false;
+      }
       const charWidth = width * widthAdvanceScale + spacing * fontDirection;
 
       if (!glyph.isInFont && !font.missingFile) {
@@ -839,6 +849,9 @@ SVGGraphics = class SVGGraphics {
     current.txtElement.setAttributeNS(null, 'transform',
                                       `${pm(textMatrix)} scale(1, -1)`);
     current.txtElement.setAttributeNS(XML_NS, 'xml:space', 'preserve');
+    if (doubleSpace) {
+      current.tspan.setAttributeNS(XML_NS, 'xml:space', 'preserve');
+    }
     current.txtElement.appendChild(current.tspan);
     current.txtgrp.appendChild(current.txtElement);
 
