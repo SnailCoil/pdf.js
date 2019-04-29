@@ -14,7 +14,7 @@
  */
 
 import {
-  cloneObj, isValidRotation, parseQueryString, waitOnEventOrTimeout
+  isValidRotation, parseQueryString, waitOnEventOrTimeout
 } from './ui_utils';
 import { getGlobalEventBus } from './dom_events';
 
@@ -133,6 +133,9 @@ class PDFHistory {
     let destination = state.destination;
     this._updateInternalState(destination, state.uid,
                               /* removeTemporary = */ true);
+    if (this._uid > this._maxUid) {
+      this._maxUid = this._uid;
+    }
 
     if (destination.rotation !== undefined) {
       this.initialRotation = destination.rotation;
@@ -161,7 +164,7 @@ class PDFHistory {
       return;
     }
     if ((namedDest && typeof namedDest !== 'string') ||
-        !(explicitDest instanceof Array) ||
+        !Array.isArray(explicitDest) ||
         !(Number.isInteger(pageNumber) &&
           pageNumber > 0 && pageNumber <= this.linkService.pagesCount)) {
       console.error('PDFHistory.push: Invalid parameters.');
@@ -278,23 +281,10 @@ class PDFHistory {
     this._updateInternalState(destination, newState.uid);
 
     if (shouldReplace) {
-      if (typeof PDFJSDev !== 'undefined' &&
-          PDFJSDev.test('FIREFOX || MOZCENTRAL')) {
-        // Providing the third argument causes a SecurityError for file:// URLs.
-        window.history.replaceState(newState, '');
-      } else {
-        window.history.replaceState(newState, '', document.URL);
-      }
+      window.history.replaceState(newState, '');
     } else {
       this._maxUid = this._uid;
-
-      if (typeof PDFJSDev !== 'undefined' &&
-          PDFJSDev.test('FIREFOX || MOZCENTRAL')) {
-        // Providing the third argument causes a SecurityError for file:// URLs.
-        window.history.pushState(newState, '');
-      } else {
-        window.history.pushState(newState, '', document.URL);
-      }
+      window.history.pushState(newState, '');
     }
 
     if (typeof PDFJSDev !== 'undefined' && PDFJSDev.test('CHROME') &&
@@ -313,7 +303,7 @@ class PDFHistory {
     }
     let position = this._position;
     if (temporary) {
-      position = cloneObj(this._position);
+      position = Object.assign(Object.create(null), this._position);
       position.temporary = true;
     }
 
@@ -510,6 +500,9 @@ class PDFHistory {
     let destination = state.destination;
     this._updateInternalState(destination, state.uid,
                               /* removeTemporary = */ true);
+    if (this._uid > this._maxUid) {
+      this._maxUid = this._uid;
+    }
 
     if (isValidRotation(destination.rotation)) {
       this.linkService.rotation = destination.rotation;
@@ -541,10 +534,10 @@ class PDFHistory {
     _boundEvents.pageHide = (evt) => {
       // Attempt to push the `this._position` into the browser history when
       // navigating away from the document. This is *only* done if the history
-      // is currently empty, since otherwise an existing browser history entry
+      // is empty/temporary, since otherwise an existing browser history entry
       // will end up being overwritten (given that new entries cannot be pushed
       // into the browser history when the 'unload' event has already fired).
-      if (!this._destination) {
+      if (!this._destination || this._destination.temporary) {
         this._tryPushCurrentPosition();
       }
     };
@@ -574,7 +567,7 @@ function isDestArraysEqual(firstDest, secondDest) {
     if (typeof first !== typeof second) {
       return false;
     }
-    if (first instanceof Array || second instanceof Array) {
+    if (Array.isArray(first) || Array.isArray(second)) {
       return false;
     }
     if (first !== null && typeof first === 'object' && second !== null) {
@@ -591,7 +584,7 @@ function isDestArraysEqual(firstDest, secondDest) {
     return first === second || (Number.isNaN(first) && Number.isNaN(second));
   }
 
-  if (!(firstDest instanceof Array && secondDest instanceof Array)) {
+  if (!(Array.isArray(firstDest) && Array.isArray(secondDest))) {
     return false;
   }
   if (firstDest.length !== secondDest.length) {
