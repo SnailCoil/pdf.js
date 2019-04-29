@@ -15,7 +15,7 @@
 
 import {
   addLinkAttributes, DOMSVGFactory, getFilenameFromUrl, LinkTarget
-} from './dom_utils';
+} from './display_utils';
 import {
   AnnotationBorderStyleType, AnnotationType, stringToPDFString, unreachable,
   Util, warn
@@ -71,6 +71,9 @@ class AnnotationElementFactory {
       case AnnotationType.POPUP:
         return new PopupAnnotationElement(parameters);
 
+      case AnnotationType.FREETEXT:
+        return new FreeTextAnnotationElement(parameters);
+
       case AnnotationType.LINE:
         return new LineAnnotationElement(parameters);
 
@@ -82,6 +85,9 @@ class AnnotationElementFactory {
 
       case AnnotationType.POLYLINE:
         return new PolylineAnnotationElement(parameters);
+
+      case AnnotationType.CARET:
+        return new CaretAnnotationElement(parameters);
 
       case AnnotationType.INK:
         return new InkAnnotationElement(parameters);
@@ -447,8 +453,9 @@ class TextWidgetAnnotationElement extends WidgetAnnotationElement {
       element.style.display = 'table-cell';
 
       let font = null;
-      if (this.data.fontRefName) {
-        font = this.page.commonObjs.getData(this.data.fontRefName);
+      if (this.data.fontRefName &&
+          this.page.commonObjs.has(this.data.fontRefName)) {
+        font = this.page.commonObjs.get(this.data.fontRefName);
       }
       this._setTextStyle(element, font);
     }
@@ -803,6 +810,30 @@ class PopupElement {
   }
 }
 
+class FreeTextAnnotationElement extends AnnotationElement {
+  constructor(parameters) {
+    const isRenderable = !!(parameters.data.hasPopup ||
+                            parameters.data.title || parameters.data.contents);
+    super(parameters, isRenderable, /* ignoreBorder = */ true);
+  }
+
+  /**
+   * Render the free text annotation's HTML element in the empty container.
+   *
+   * @public
+   * @memberof FreeTextAnnotationElement
+   * @returns {HTMLSectionElement}
+   */
+  render() {
+    this.container.className = 'freeTextAnnotation';
+
+    if (!this.data.hasPopup) {
+      this._createPopup(this.container, null, this.data);
+    }
+    return this.container;
+  }
+}
+
 class LineAnnotationElement extends AnnotationElement {
   constructor(parameters) {
     let isRenderable = !!(parameters.data.hasPopup ||
@@ -1013,6 +1044,30 @@ class PolygonAnnotationElement extends PolylineAnnotationElement {
 
     this.containerClassName = 'polygonAnnotation';
     this.svgElementName = 'svg:polygon';
+  }
+}
+
+class CaretAnnotationElement extends AnnotationElement {
+  constructor(parameters) {
+    const isRenderable = !!(parameters.data.hasPopup ||
+                            parameters.data.title || parameters.data.contents);
+    super(parameters, isRenderable, /* ignoreBorder = */ true);
+  }
+
+  /**
+   * Render the caret annotation's HTML element in the empty container.
+   *
+   * @public
+   * @memberof CaretAnnotationElement
+   * @returns {HTMLSectionElement}
+   */
+  render() {
+    this.container.className = 'caretAnnotation';
+
+    if (!this.data.hasPopup) {
+      this._createPopup(this.container, null, this.data);
+    }
+    return this.container;
   }
 }
 

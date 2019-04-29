@@ -20,10 +20,10 @@ import {
   AnnotationBorderStyleType, AnnotationFieldFlag, AnnotationFlag,
   AnnotationType, stringToBytes, stringToUTF8String
 } from '../../src/shared/util';
+import { createIdFactory, XRefMock } from './test_utils';
 import { Dict, Name, Ref } from '../../src/core/primitives';
 import { Lexer, Parser } from '../../src/core/parser';
 import { StringStream } from '../../src/core/stream';
-import { XRefMock } from './test_utils';
 
 describe('annotation', function() {
   class PDFManagerMock {
@@ -43,26 +43,13 @@ describe('annotation', function() {
     }
   }
 
-  class IdFactoryMock {
-    constructor(params) {
-      this.uniquePrefix = params.prefix || 'p0_';
-      this.idCounters = {
-        obj: params.startObjId || 0,
-      };
-    }
-
-    createObjId() {
-      return this.uniquePrefix + (++this.idCounters.obj);
-    }
-  }
-
   let pdfManagerMock, idFactoryMock;
 
   beforeAll(function(done) {
     pdfManagerMock = new PDFManagerMock({
       docBaseUrl: null,
     });
-    idFactoryMock = new IdFactoryMock({ });
+    idFactoryMock = createIdFactory(/* pageIndex = */ 0);
     done();
   });
 
@@ -97,10 +84,7 @@ describe('annotation', function() {
       annotationDict.set('Subtype', Name.get('Link'));
 
       const xref = new XRefMock();
-      const idFactory = new IdFactoryMock({
-        prefix: 'p0_',
-        startObjId: 0,
-      });
+      const idFactory = createIdFactory(/* pageIndex = */ 0);
 
       const annotation1 = AnnotationFactory.create(xref, annotationDict,
           pdfManagerMock, idFactory).then(({ data, }) => {
@@ -234,6 +218,17 @@ describe('annotation', function() {
       borderStyle.setWidth('three');
 
       expect(borderStyle.width).toEqual(1);
+    });
+
+    it('should set the width to zero, when the input is a `Name` (issue 10385)',
+        function() {
+      const borderStyleZero = new AnnotationBorderStyle();
+      borderStyleZero.setWidth(Name.get('0'));
+      const borderStyleFive = new AnnotationBorderStyle();
+      borderStyleFive.setWidth(Name.get('5'));
+
+      expect(borderStyleZero.width).toEqual(0);
+      expect(borderStyleFive.width).toEqual(0);
     });
 
     it('should set and get a valid style', function() {
